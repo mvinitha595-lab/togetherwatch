@@ -17,9 +17,9 @@
       <div class="room-badge">
         <span class="room-badge-label">Room:</span>
         <span class="room-badge-code" id="header-room-code">------</span>
-        <button class="copy-btn" onclick="copyRoomCode()" title="Copy code">📋</button>
+        <button class="copy-btn" onclick="copyRoomCode()">📋</button>
       </div>
-      <div class="partner-status" id="partner-status">
+      <div class="partner-status">
         <div class="status-dot offline" id="partner-dot"></div>
         <span id="partner-name-display">Waiting...</span>
       </div>
@@ -27,27 +27,22 @@
   </header>
 
   <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="switchTab('watch', this)">
-      <span>🎬</span><span>Watch</span>
-    </button>
+    <button class="nav-btn active" onclick="switchTab('watch', this)"><span>🎬</span><span>Watch</span></button>
     <button class="nav-btn" onclick="switchTab('chat', this)">
       <span>💬</span><span>Chat</span>
       <span class="chat-badge" id="chat-badge" style="display:none;">●</span>
     </button>
-    <button class="nav-btn" onclick="switchTab('call', this)">
-      <span>📞</span><span>Call</span>
-    </button>
+    <button class="nav-btn" onclick="switchTab('call', this)"><span>📞</span><span>Call</span></button>
   </nav>
 
-  <!-- ===== TAB: WATCH ===== -->
+  <!-- ===== WATCH TAB ===== -->
   <div id="tab-watch" class="tab active">
 
     <div class="section">
       <label class="section-label">🎬 Load a Video</label>
-
       <div class="source-tabs">
-        <button class="source-tab active" id="src-tab-url" onclick="switchSourceTab('url')">🔗 Paste URL</button>
-        <button class="source-tab" id="src-tab-upload" onclick="switchSourceTab('upload')">📁 Upload File</button>
+        <button class="source-tab active" id="src-tab-url"    onclick="switchSourceTab('url')">🔗 Paste URL</button>
+        <button class="source-tab"        id="src-tab-upload" onclick="switchSourceTab('upload')">📁 Upload File</button>
       </div>
 
       <!-- URL panel -->
@@ -56,7 +51,6 @@
           <input type="url" id="video-url-input" class="field-input" placeholder="Google Drive, Dropbox, or direct .mp4 URL..." />
           <button class="btn-load" onclick="loadVideoFromUrl()">Load</button>
         </div>
-        <!-- Source guide pills -->
         <div class="source-guide">
           <span class="guide-title">Works with:</span>
           <span class="guide-pill gdrive">✅ Google Drive</span>
@@ -64,14 +58,14 @@
           <span class="guide-pill direct">✅ Direct .mp4</span>
           <span class="guide-pill yt">❌ YouTube</span>
         </div>
+        <p class="hint" style="margin-top:6px;">Google Drive: share link → "Anyone with the link" → paste here</p>
       </div>
 
       <!-- Upload panel -->
       <div id="src-panel-upload" class="src-panel" style="display:none;">
         <div class="upload-drop-zone" id="upload-zone"
              onclick="document.getElementById('file-input').click()"
-             ondragover="onDragOver(event)"
-             ondrop="onFileDrop(event)">
+             ondragover="onDragOver(event)" ondrop="onFileDrop(event)">
           <div class="upload-icon">📂</div>
           <p class="upload-label">Tap to pick a video file</p>
           <p class="upload-sub">MP4, MKV, MOV, AVI — plays instantly</p>
@@ -81,27 +75,20 @@
           <span id="upload-filename" class="upload-filename"></span>
           <button class="btn-load" onclick="loadVideoFromFile()">▶ Play</button>
         </div>
-        <p class="hint" style="margin-top:8px;">Both partners pick the same movie file on their own device — nothing uploads to internet</p>
+        <p class="hint" style="margin-top:8px;">Both partners pick the same movie file on their own device</p>
       </div>
     </div>
 
-    <!-- Player area — switches between <video> and <iframe> depending on source -->
+    <!-- Video player — ONE video element, full sync always -->
     <div class="player-wrap" id="player-wrap">
       <div class="player-placeholder" id="player-placeholder">
         <div class="placeholder-icon">🎬</div>
-        <p>Load a video above to start watching together 💕</p>
+        <p>Load a video above to watch together 💕</p>
       </div>
-      <!-- For direct mp4 / local files -->
       <video id="main-video" playsinline></video>
-      <!-- For Google Drive / Dropbox embeds -->
-      <iframe id="main-iframe"
-        style="display:none;width:100%;height:100%;border:none;"
-        allow="autoplay; fullscreen"
-        allowfullscreen>
-      </iframe>
     </div>
 
-    <!-- Controls (only shown for direct video, not iframe) -->
+    <!-- Playback controls -->
     <div class="controls-bar" id="controls-bar" style="display:none;">
       <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()">▶</button>
       <button class="ctrl-btn" onclick="skip(-10)">⏪</button>
@@ -114,16 +101,12 @@
       <span class="time-label" id="time-label">0:00</span>
     </div>
 
-    <!-- Iframe notice (shown instead of controls for Drive/Dropbox) -->
-    <div class="iframe-notice" id="iframe-notice" style="display:none;">
-      <span>💡 Use the player controls inside the video above. Chat & reactions still work! 💕</span>
-    </div>
-
     <div class="sync-row" id="sync-row" style="display:none;">
       <span class="sync-dot" id="sync-dot" style="color:#4ade80;">●</span>
-      <span class="sync-label" id="sync-label">In sync with partner</span>
+      <span class="sync-label" id="sync-label">In sync with partner ✓</span>
     </div>
 
+    <!-- Emoji reactions -->
     <div class="section">
       <label class="section-label">💫 React Together</label>
       <div class="emoji-grid">
@@ -142,6 +125,7 @@
       </div>
     </div>
 
+    <!-- Mood -->
     <div class="section">
       <label class="section-label">🎭 Your Mood</label>
       <div class="mood-row">
@@ -160,7 +144,7 @@
     <div style="height:90px;"></div>
   </div>
 
-  <!-- ===== TAB: CHAT ===== -->
+  <!-- ===== CHAT TAB ===== -->
   <div id="tab-chat" class="tab">
     <div class="chat-wrapper">
       <div class="messages-list" id="messages-list"></div>
@@ -184,7 +168,7 @@
     <div style="height:70px;"></div>
   </div>
 
-  <!-- ===== TAB: CALL ===== -->
+  <!-- ===== CALL TAB ===== -->
   <div id="tab-call" class="tab">
     <div class="call-section">
       <div class="call-card">
@@ -193,7 +177,7 @@
         <p class="call-subtitle">Voice & video call — works on iPhone and Android</p>
         <div id="local-video-wrap" style="display:none;">
           <video id="local-video" autoplay muted playsinline class="local-video-preview"></video>
-          <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;">You (preview)</p>
+          <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;">You</p>
         </div>
         <div id="remote-video-wrap" style="display:none;">
           <video id="remote-video" autoplay playsinline class="remote-video-preview"></video>
@@ -211,10 +195,9 @@
       </div>
       <div class="how-to-card">
         <h4>How calls work</h4>
-        <div class="how-step"><span class="step-n">1</span><span>Both join the same room code</span></div>
+        <div class="how-step"><span class="step-n">1</span><span>Both join the same room</span></div>
         <div class="how-step"><span class="step-n">2</span><span>Click Voice or Video — allow mic/camera</span></div>
-        <div class="how-step"><span class="step-n">3</span><span>Your partner taps the same button to connect</span></div>
-        <div class="how-step"><span class="step-n">💡</span><span>WebRTC — no account needed, fully private</span></div>
+        <div class="how-step"><span class="step-n">3</span><span>Partner taps same button to connect</span></div>
       </div>
     </div>
     <div style="height:80px;"></div>
