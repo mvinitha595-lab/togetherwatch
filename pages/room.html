@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TogetherWatch — Room 💕</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,500;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="stars"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <a href="../index.html" class="logo-small">Together<span>♥</span>Watch</a>
+    <div class="header-right">
+      <div class="room-badge">
+        <span class="room-badge-label">Room:</span>
+        <span class="room-badge-code" id="header-room-code">------</span>
+        <button class="copy-btn" onclick="copyRoomCode()" title="Copy code">📋</button>
+      </div>
+      <div class="partner-status" id="partner-status">
+        <div class="status-dot offline" id="partner-dot"></div>
+        <span id="partner-name-display">Waiting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Bottom nav -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('watch', this)">
+      <span>🎬</span><span>Watch</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('chat', this)">
+      <span>💬</span><span>Chat</span>
+      <span class="chat-badge" id="chat-badge" style="display:none;">●</span>
+    </button>
+    <button class="nav-btn" onclick="switchTab('call', this)">
+      <span>📞</span><span>Call</span>
+    </button>
+  </nav>
+
+  <!-- ===== TAB: WATCH ===== -->
+  <div id="tab-watch" class="tab active">
+
+    <!-- Video source options -->
+    <div class="section">
+      <label class="section-label">🎬 Load a Video</label>
+
+      <!-- Tab switcher for URL vs Upload -->
+      <div class="source-tabs">
+        <button class="source-tab active" id="src-tab-url" onclick="switchSourceTab('url')">🔗 Paste URL</button>
+        <button class="source-tab" id="src-tab-upload" onclick="switchSourceTab('upload')">📁 Upload File</button>
+      </div>
+
+      <!-- URL panel -->
+      <div id="src-panel-url" class="src-panel">
+        <div class="url-row">
+          <input type="url" id="video-url-input" class="field-input" placeholder="Paste direct .mp4 video URL..." />
+          <button class="btn-load" onclick="loadVideoFromUrl()">Load</button>
+        </div>
+        <p class="hint">Tip: Use <b>archive.org</b> for free movies, or any direct .mp4 link</p>
+      </div>
+
+      <!-- Upload panel -->
+      <div id="src-panel-upload" class="src-panel" style="display:none;">
+        <div class="upload-drop-zone" id="upload-zone" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event)" ondrop="onFileDrop(event)">
+          <div class="upload-icon">📂</div>
+          <p class="upload-label">Tap to pick a video file</p>
+          <p class="upload-sub">MP4, MKV, MOV, AVI — any size</p>
+          <input type="file" id="file-input" accept="video/*" style="display:none;" onchange="onFileSelected(event)" />
+        </div>
+        <div id="upload-info" style="display:none;" class="upload-info-bar">
+          <span id="upload-filename" class="upload-filename"></span>
+          <button class="btn-load" onclick="loadVideoFromFile()">▶ Play</button>
+        </div>
+        <p class="hint" style="margin-top:8px;">⚠️ Both partners need to upload the <b>same video file</b> on their own device (file stays local — nothing is uploaded to the internet)</p>
+      </div>
+    </div>
+
+    <!-- Player -->
+    <div class="player-wrap" id="player-wrap">
+      <div class="player-placeholder" id="player-placeholder">
+        <div class="placeholder-icon">🎬</div>
+        <p>Load a video above to start watching together 💕</p>
+      </div>
+      <video id="main-video" playsinline></video>
+    </div>
+
+    <!-- Playback controls -->
+    <div class="controls-bar" id="controls-bar" style="display:none;">
+      <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()">▶</button>
+      <button class="ctrl-btn" onclick="skip(-10)" title="Back 10s">⏪</button>
+      <div class="progress-container" onclick="seekTo(event)">
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+      <button class="ctrl-btn" onclick="skip(10)" title="Forward 10s">⏩</button>
+      <span class="time-label" id="time-label">0:00</span>
+    </div>
+
+    <div class="sync-row" id="sync-row" style="display:none;">
+      <span class="sync-dot" id="sync-dot" style="color:#4ade80;">●</span>
+      <span class="sync-label" id="sync-label">In sync with partner</span>
+    </div>
+
+    <!-- Emoji reactions -->
+    <div class="section">
+      <label class="section-label">💫 React Together</label>
+      <div class="emoji-grid">
+        <button class="emoji-btn" onclick="sendReaction('❤️')">❤️</button>
+        <button class="emoji-btn" onclick="sendReaction('😂')">😂</button>
+        <button class="emoji-btn" onclick="sendReaction('😱')">😱</button>
+        <button class="emoji-btn" onclick="sendReaction('😭')">😭</button>
+        <button class="emoji-btn" onclick="sendReaction('🔥')">🔥</button>
+        <button class="emoji-btn" onclick="sendReaction('👏')">👏</button>
+        <button class="emoji-btn" onclick="sendReaction('🥰')">🥰</button>
+        <button class="emoji-btn" onclick="sendReaction('💕')">💕</button>
+        <button class="emoji-btn" onclick="sendReaction('🤣')">🤣</button>
+        <button class="emoji-btn" onclick="sendReaction('😴')">😴</button>
+        <button class="emoji-btn" onclick="sendReaction('🤯')">🤯</button>
+        <button class="emoji-btn" onclick="sendReaction('✨')">✨</button>
+      </div>
+    </div>
+
+    <!-- Mood -->
+    <div class="section">
+      <label class="section-label">🎭 Your Mood</label>
+      <div class="mood-row">
+        <button class="mood-btn" onclick="setMood(this,'😊 Happy')"><span>😊</span>Happy</button>
+        <button class="mood-btn" onclick="setMood(this,'🥰 Cozy')"><span>🥰</span>Cozy</button>
+        <button class="mood-btn" onclick="setMood(this,'😨 Scared')"><span>😨</span>Scared</button>
+        <button class="mood-btn" onclick="setMood(this,'😴 Sleepy')"><span>😴</span>Sleepy</button>
+      </div>
+    </div>
+
+    <div class="partner-mood-row" id="partner-mood-row" style="display:none;">
+      <span class="partner-mood-label">Partner feels:</span>
+      <span class="partner-mood-value" id="partner-mood-value"></span>
+    </div>
+
+    <div style="height:90px;"></div>
+  </div>
+
+  <!-- ===== TAB: CHAT ===== -->
+  <div id="tab-chat" class="tab">
+    <div class="chat-wrapper">
+      <div class="messages-list" id="messages-list"></div>
+    </div>
+
+    <div class="quick-emoji-bar">
+      <button onclick="sendChatEmoji('❤️')">❤️</button>
+      <button onclick="sendChatEmoji('😘')">😘</button>
+      <button onclick="sendChatEmoji('🥺')">🥺</button>
+      <button onclick="sendChatEmoji('😂')">😂</button>
+      <button onclick="sendChatEmoji('💔')">💔</button>
+      <button onclick="sendChatEmoji('🌙')">🌙</button>
+      <button onclick="sendChatEmoji('🙈')">🙈</button>
+      <button onclick="sendChatEmoji('💕')">💕</button>
+    </div>
+
+    <div class="chat-input-bar">
+      <input
+        type="text"
+        id="chat-input"
+        class="chat-text-input"
+        placeholder="Say something sweet..."
+        maxlength="300"
+        onkeydown="if(event.key==='Enter') sendChatMessage()"
+      />
+      <button class="send-btn" onclick="sendChatMessage()">➤</button>
+    </div>
+    <div style="height:70px;"></div>
+  </div>
+
+  <!-- ===== TAB: CALL ===== -->
+  <div id="tab-call" class="tab">
+    <div class="call-section">
+      <div class="call-card">
+        <div class="call-heart">💕</div>
+        <h2 class="call-title">Call Your Partner</h2>
+        <p class="call-subtitle">Voice & video call — works on iPhone and Android</p>
+
+        <div id="local-video-wrap" style="display:none;">
+          <video id="local-video" autoplay muted playsinline class="local-video-preview"></video>
+          <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;">You (preview)</p>
+        </div>
+        <div id="remote-video-wrap" style="display:none;">
+          <video id="remote-video" autoplay playsinline class="remote-video-preview"></video>
+          <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;">Partner</p>
+        </div>
+
+        <div class="call-buttons">
+          <button class="call-btn voice" id="voice-btn" onclick="toggleVoiceCall()">
+            <span class="call-icon">🎙️</span>
+            <span>Voice Call</span>
+          </button>
+          <button class="call-btn video" id="video-btn" onclick="toggleVideoCall()">
+            <span class="call-icon">📹</span>
+            <span>Video Call</span>
+          </button>
+        </div>
+        <div class="call-status" id="call-status"></div>
+      </div>
+
+      <div class="how-to-card">
+        <h4>How calls work</h4>
+        <div class="how-step"><span class="step-n">1</span><span>Both join the same room code</span></div>
+        <div class="how-step"><span class="step-n">2</span><span>Click Voice or Video — allow mic/camera</span></div>
+        <div class="how-step"><span class="step-n">3</span><span>Your partner taps the same button to connect</span></div>
+        <div class="how-step"><span class="step-n">💡</span><span>WebRTC — no account needed, fully private</span></div>
+      </div>
+    </div>
+    <div style="height:80px;"></div>
+  </div>
+
+  <!-- Floating emoji container -->
+  <div id="float-container" style="position:fixed;inset:0;pointer-events:none;z-index:999;"></div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ONE module entry: room.js imports firebase-config.js itself -->
+  <script type="module" src="../js/room.js"></script>
+</body>
+</html>
