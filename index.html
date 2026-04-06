@@ -7,71 +7,126 @@
   <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
-  <div class="stars-layer" id="stars-layer"></div>
-  <div class="glow-blob rose"></div>
-  <div class="glow-blob gold"></div>
-  <div class="glow-blob purple"></div>
+  <div class="stars-layer" id="sl"></div>
+  <div class="blob" style="background:#e8637a;width:280px;height:280px;top:-70px;right:-50px;opacity:0.14;animation-delay:0s;"></div>
+  <div class="blob" style="background:#f0c060;width:200px;height:200px;bottom:20%;left:-50px;opacity:0.12;animation-delay:3s;"></div>
+  <div class="blob" style="background:#a855f7;width:240px;height:240px;bottom:-50px;right:15%;opacity:0.12;animation-delay:1.5s;"></div>
 
-  <div class="lobby-container">
+  <div class="lobby-wrap">
     <div class="lobby-card">
       <div class="logo-big">Together<span>♥</span>Watch</div>
       <p class="tagline">Watch movies together — no matter the distance 🌙</p>
 
-      <!-- Couple identity -->
-      <div class="couple-row">
-        <div class="couple-field">
-          <label class="couple-label label-you">💙 Your name</label>
-          <input type="text" id="my-name" class="field-input you-input" placeholder="e.g. Vinu" maxlength="20"/>
+      <!-- Couple name -->
+      <div class="couple-name-row">
+        <input class="couple-name-input" id="couple-name" placeholder="Your couple name (e.g. VinuBujji ✨)" maxlength="30"/>
+        <span class="heart-sep">💕</span>
+      </div>
+
+      <!-- Profile photos + names -->
+      <div class="profile-row">
+        <div class="profile-col">
+          <div class="avatar-wrap" onclick="pickAvatar('you')">
+            <div class="avatar" id="avatar-you">😊</div>
+            <div class="avatar-edit">✏️</div>
+          </div>
+          <span class="profile-label you">💙 You</span>
+          <input class="field-input you-f" id="my-name" placeholder="Your name" maxlength="20" style="text-align:center;padding:8px 10px;font-size:14px;"/>
+          <input type="file" id="avatar-you-file" accept="image/*" style="display:none;" onchange="loadAvatar('you',event)"/>
         </div>
-        <div class="couple-field">
-          <label class="couple-label label-partner">💛 Partner's name</label>
-          <input type="text" id="partner-name-input" class="field-input partner-input" placeholder="e.g. Bujji" maxlength="20"/>
+        <div style="display:flex;align-items:center;justify-content:center;font-size:28px;padding-top:14px;">💞</div>
+        <div class="profile-col">
+          <div class="avatar-wrap" onclick="pickAvatar('partner')">
+            <div class="avatar" id="avatar-partner">🥰</div>
+            <div class="avatar-edit">✏️</div>
+          </div>
+          <span class="profile-label partner">💛 Partner</span>
+          <input class="field-input par-f" id="partner-name" placeholder="Their name" maxlength="20" style="text-align:center;padding:8px 10px;font-size:14px;"/>
+          <input type="file" id="avatar-partner-file" accept="image/*" style="display:none;" onchange="loadAvatar('partner',event)"/>
         </div>
       </div>
 
-      <div class="divider-text">— Choose an option —</div>
+      <!-- Distance -->
+      <div class="km-row">
+        <span class="km-icon">📍</span>
+        <input class="km-input" id="distance" type="number" placeholder="Distance between you two" min="0"/>
+        <span class="km-label">km apart</span>
+      </div>
 
-      <button class="btn-primary" id="create-btn" onclick="createRoom()">
-        ✨ Create a New Room
-      </button>
+      <!-- Joined date -->
+      <div class="joined-display" id="joined-display">
+        Together since: <span id="joined-text">—</span>
+        <br/><input type="date" id="joined-date" style="background:transparent;border:none;color:var(--muted);font-size:11px;cursor:pointer;outline:none;" onchange="updateJoined()"/>
+      </div>
 
-      <div class="join-section">
-        <input type="text" id="join-code" class="field-input"
-          placeholder="Enter Room Code (e.g. AB12CD)" maxlength="6"
-          style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:18px;"
-          onkeydown="if(event.key==='Enter') joinRoom()"/>
+      <div class="divider">— Choose an option —</div>
+      <button class="btn-primary" id="create-btn" onclick="createRoom()">✨ Create a New Room</button>
+      <div class="join-row">
+        <input class="field-input" id="join-code" placeholder="Enter Room Code (e.g. AB12CD)" maxlength="6"
+          style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:17px;"
+          onkeydown="if(event.key==='Enter')joinRoom()"/>
         <button class="btn-secondary" id="join-btn" onclick="joinRoom()">🔗 Join Room</button>
       </div>
-
       <div id="lobby-status"></div>
-      <p class="hint">Share your room code with your partner. Works on iPhone &amp; Android! 📱</p>
+      <p class="hint">Share your room code with your partner. Works on iPhone &amp; Android 📱</p>
     </div>
   </div>
 
-  <script type="module" src="js/lobby.js"></script>
   <script>
-    // Generate animated stars
-    const layer = document.getElementById('stars-layer');
-    for (let i = 0; i < 60; i++) {
-      const s = document.createElement('div');
-      s.className = 'star';
-      const size = Math.random() * 2.5 + 0.5;
-      s.style.cssText = `
-        width:${size}px;height:${size}px;
-        top:${Math.random()*100}%;left:${Math.random()*100}%;
-        --dur:${2+Math.random()*4}s;
-        --delay:${Math.random()*5}s;
-        --max-op:${0.3+Math.random()*0.7};
-      `;
-      layer.appendChild(s);
+    // Stars
+    const sl = document.getElementById('sl');
+    for(let i=0;i<65;i++){
+      const s=document.createElement('div');s.className='star';
+      const sz=Math.random()*2.5+0.5;
+      s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${2+Math.random()*4}s;--delay:${Math.random()*5}s;--op:${0.3+Math.random()*0.7};`;
+      sl.appendChild(s);
     }
-    // Shooting stars
-    for (let i = 0; i < 3; i++) {
-      const sh = document.createElement('div');
-      sh.className = 'shooting';
-      sh.style.cssText = `top:${10+Math.random()*30}%;left:${Math.random()*50}%;animation-delay:${i*2.5}s;`;
-      layer.appendChild(sh);
+    for(let i=0;i<4;i++){
+      const sh=document.createElement('div');sh.className='shoot';
+      sh.style.cssText=`top:${5+Math.random()*35}%;left:${Math.random()*40}%;--sd:${5+Math.random()*4}s;--sdel:${i*1.8}s;--ang:${30+Math.random()*15}deg;`;
+      sl.appendChild(sh);
     }
+
+    // Avatar preview
+    function pickAvatar(who) {
+      document.getElementById('avatar-'+who+'-file').click();
+    }
+    function loadAvatar(who, e) {
+      const file = e.target.files[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const av = document.getElementById('avatar-'+who);
+        av.innerHTML = `<img src="${ev.target.result}" alt="avatar"/>`;
+        localStorage.setItem('tw_avatar_'+who, ev.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Restore saved
+    ['you','partner'].forEach(who => {
+      const saved = localStorage.getItem('tw_avatar_'+who);
+      if(saved) document.getElementById('avatar-'+who).innerHTML=`<img src="${saved}" alt="avatar"/>`;
+    });
+    ['my-name','partner-name','couple-name','distance'].forEach(id => {
+      const el=document.getElementById(id);
+      const saved=localStorage.getItem('tw_'+id);
+      if(saved&&el) el.value=saved;
+      if(el) el.addEventListener('input',()=>localStorage.setItem('tw_'+id,el.value));
+    });
+
+    // Joined date
+    function updateJoined(){
+      const d=document.getElementById('joined-date').value;
+      if(!d) return;
+      const date=new Date(d);
+      const now=new Date();
+      const days=Math.floor((now-date)/(1000*60*60*24));
+      document.getElementById('joined-text').textContent=date.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})+' ('+days+' days ago 💕)';
+      localStorage.setItem('tw_joined',d);
+    }
+    const savedJoined=localStorage.getItem('tw_joined');
+    if(savedJoined){document.getElementById('joined-date').value=savedJoined;updateJoined();}
   </script>
+  <script type="module" src="js/lobby.js"></script>
 </body>
 </html>
