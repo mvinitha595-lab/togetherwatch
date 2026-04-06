@@ -2,14 +2,203 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
   <title>TogetherWatch 💕</title>
   <link rel="stylesheet" href="../css/style.css"/>
+  <style>
+    /* ── CALL SCREEN (fullscreen video layout) ── */
+    .call-screen {
+      display: none;
+      position: fixed; inset: 0; z-index: 500;
+      background: #080510;
+      flex-direction: column;
+    }
+    .call-screen.active { display: flex; }
+
+    /* Remote video — fills the screen */
+    .call-remote-wrap {
+      flex: 1; position: relative; background: #0a0514;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #call-remote-video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      background: #0a0514;
+    }
+    .call-remote-placeholder {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      position: absolute; inset: 0; justify-content: center;
+    }
+    .call-remote-avatar {
+      width: 100px; height: 100px; border-radius: 50%;
+      background: rgba(232,99,122,0.15);
+      border: 3px solid var(--rose);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px;
+      box-shadow: 0 0 40px var(--rose-glow);
+      animation: avatarPulse 2s ease-in-out infinite;
+    }
+    @keyframes avatarPulse {
+      0%,100% { box-shadow: 0 0 20px var(--rose-glow); transform: scale(1); }
+      50%      { box-shadow: 0 0 50px var(--rose-glow); transform: scale(1.04); }
+    }
+    .call-remote-name { font-size: 22px; font-weight: 500; color: white; }
+    .call-remote-status { font-size: 14px; color: rgba(255,255,255,0.5); }
+
+    /* My small preview — top right corner */
+    .call-self-wrap {
+      position: absolute;
+      top: 14px; right: 14px;
+      width: 100px; height: 140px;
+      border-radius: 14px; overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: #111;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      z-index: 10;
+      cursor: grab;
+    }
+    #call-local-video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* mirror */
+    }
+    .self-label {
+      position: absolute; bottom: 4px; left: 0; right: 0;
+      text-align: center; font-size: 11px;
+      color: rgba(255,255,255,0.8);
+      background: rgba(0,0,0,0.4);
+      padding: 2px 0;
+    }
+
+    /* Call controls bar at bottom */
+    .call-controls-bar {
+      background: rgba(10,5,20,0.95);
+      padding: 16px 20px 28px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 18px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .call-action-btn {
+      width: 56px; height: 56px; border-radius: 50%;
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .call-action-btn.end   { background: #e8637a; box-shadow: 0 0 20px rgba(232,99,122,0.5); }
+    .call-action-btn.end:hover { background: #c04460; transform: scale(1.08); }
+    .call-action-btn.mute  { background: rgba(255,255,255,0.12); }
+    .call-action-btn.cam   { background: rgba(255,255,255,0.12); }
+    .call-action-btn.mute.on, .call-action-btn.cam.on { background: rgba(248,113,113,0.25); border: 1px solid #f87171; }
+    .call-action-btn:active { transform: scale(0.92); }
+
+    /* Call status overlay text */
+    .call-status-overlay {
+      position: absolute; top: 0; left: 0; right: 0;
+      text-align: center; padding: 14px;
+      font-size: 13px; color: rgba(255,255,255,0.7);
+      background: linear-gradient(rgba(0,0,0,0.5),transparent);
+      pointer-events: none;
+    }
+
+    /* Incoming call modal */
+    .incoming-call-modal {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+      align-items: center; justify-content: center;
+    }
+    .incoming-call-modal.show { display: flex; }
+    .incoming-card {
+      background: rgba(18,9,32,0.97);
+      border: 1px solid rgba(232,99,122,0.3);
+      border-radius: 24px; padding: 32px 28px; text-align: center;
+      width: 90%; max-width: 340px;
+      box-shadow: 0 0 60px rgba(232,99,122,0.2);
+      animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .incoming-avatar { font-size: 64px; margin-bottom: 14px; animation: avatarPulse 1.5s ease-in-out infinite; }
+    .incoming-name   { font-size: 24px; font-weight: 600; color: white; margin-bottom: 4px; }
+    .incoming-type   { font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 28px; }
+    .incoming-btns   { display: flex; gap: 20px; justify-content: center; }
+    .btn-accept { width: 70px; height: 70px; border-radius: 50%; background: #4ade80; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 0 24px rgba(74,222,128,0.4); transition: all 0.2s; }
+    .btn-decline{ width: 70px; height: 70px; border-radius: 50%; background: #e8637a; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 0 24px rgba(232,99,122,0.4); transition: all 0.2s; }
+    .btn-accept:hover  { transform: scale(1.1); }
+    .btn-decline:hover { transform: scale(1.1); }
+    .incoming-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 10px; }
+
+    /* Laptop: side-by-side video layout */
+    @media (min-width: 768px) {
+      .call-remote-wrap { flex-direction: row; }
+      .call-self-wrap {
+        position: relative; top: auto; right: auto;
+        width: 50%; height: 100%;
+        border-radius: 0; border: none;
+        border-left: 1px solid rgba(255,255,255,0.1);
+      }
+      #call-local-video { height: 100%; }
+    }
+  </style>
 </head>
 <body>
   <div class="stars-layer" id="sl"></div>
   <div class="blob" style="background:#e8637a;width:260px;height:260px;top:-60px;right:-40px;opacity:0.13;"></div>
   <div class="blob" style="background:#a855f7;width:220px;height:220px;bottom:-40px;right:10%;opacity:0.11;animation-delay:2s;"></div>
+
+  <!-- ── FULLSCREEN CALL SCREEN ── -->
+  <div class="call-screen" id="call-screen">
+    <div class="call-remote-wrap">
+      <!-- Remote partner video -->
+      <video id="call-remote-video" autoplay playsinline webkit-playsinline x5-playsinline></video>
+
+      <!-- Placeholder shown when no video -->
+      <div class="call-remote-placeholder" id="call-remote-ph">
+        <div class="call-remote-avatar" id="call-remote-avatar">🥰</div>
+        <div class="call-remote-name"  id="call-remote-name">Partner</div>
+        <div class="call-remote-status" id="call-status-overlay-txt">Connecting...</div>
+      </div>
+
+      <!-- Status overlay -->
+      <div class="call-status-overlay" id="call-status-overlay"></div>
+
+      <!-- My self preview (draggable) -->
+      <div class="call-self-wrap" id="call-self-wrap">
+        <video id="call-local-video" autoplay muted playsinline webkit-playsinline x5-playsinline></video>
+        <div class="self-label" id="self-label">You</div>
+      </div>
+    </div>
+
+    <!-- Bottom controls -->
+    <div class="call-controls-bar">
+      <button class="call-action-btn mute" id="cs-mute-btn" onclick="toggleMute()" title="Mute">🎙️</button>
+      <button class="call-action-btn cam"  id="cs-cam-btn"  onclick="toggleCam()"  title="Camera" style="display:none;">📷</button>
+      <button class="call-action-btn end"  onclick="hangUp()" title="End call">📵</button>
+      <button class="call-action-btn mute" id="cs-ptt-btn"
+        onmousedown="pttStart()" onmouseup="pttEnd()"
+        ontouchstart="pttStart(event)" ontouchend="pttEnd(event)"
+        title="Push to Talk">🎤</button>
+      <button class="call-action-btn mute" onclick="toggleCallSpeaker()" id="cs-spk-btn" title="Speaker">🔈</button>
+    </div>
+  </div>
+
+  <!-- ── INCOMING CALL MODAL ── -->
+  <div class="incoming-call-modal" id="incoming-modal">
+    <div class="incoming-card">
+      <div class="incoming-avatar" id="incoming-avatar">🥰</div>
+      <div class="incoming-name" id="incoming-caller-name">Partner</div>
+      <div class="incoming-type" id="incoming-type">Voice Call</div>
+      <div class="incoming-btns">
+        <div style="text-align:center;">
+          <button class="btn-accept"  onclick="acceptCall()">📞</button>
+          <div class="incoming-label">Accept</div>
+        </div>
+        <div style="text-align:center;">
+          <button class="btn-decline" onclick="declineCall()">📵</button>
+          <div class="incoming-label">Decline</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="app-header">
@@ -22,13 +211,12 @@
       </div>
     </div>
     <div class="header-right">
-      <!-- Couple chips -->
-      <div class="couple-chip" id="chip-you">
+      <div class="couple-chip">
         <div class="c-avatar" id="hdr-avatar-you">😊</div>
         <div class="c-dot on"></div>
         <span class="c-name you" id="hdr-name-you">You</span>
       </div>
-      <div class="couple-chip" id="chip-partner">
+      <div class="couple-chip">
         <div class="c-avatar" id="hdr-avatar-partner">🥰</div>
         <div class="c-dot off" id="partner-dot"></div>
         <span class="c-name par" id="hdr-name-partner">Partner</span>
@@ -37,7 +225,6 @@
     </div>
   </header>
 
-  <!-- Bottom nav (5 tabs now) -->
   <nav class="bottom-nav">
     <button class="nav-btn active" onclick="switchTab('watch',this)"><span>🎬</span><span>Watch</span></button>
     <button class="nav-btn" onclick="switchTab('chat',this)">
@@ -53,11 +240,10 @@
     <div class="section">
       <label class="sec-label">🎬 Load a Video</label>
       <div class="src-tabs">
-        <button class="src-tab active" id="st-url"    onclick="setSrcTab('url')">🔗 URL</button>
-        <button class="src-tab"        id="st-upload" onclick="setSrcTab('upload')">📁 Upload</button>
+        <button class="src-tab active" id="st-url"     onclick="setSrcTab('url')">🔗 URL</button>
+        <button class="src-tab"        id="st-upload"  onclick="setSrcTab('upload')">📁 Upload</button>
         <button class="src-tab"        id="st-history" onclick="setSrcTab('history')">🕐 History</button>
       </div>
-      <!-- URL -->
       <div id="sp-url">
         <div class="url-row">
           <input type="url" id="video-url" class="field-input" placeholder="Google Drive, Dropbox, or .mp4 URL..."/>
@@ -71,9 +257,8 @@
           <span class="pill y">❌ YouTube</span>
         </div>
       </div>
-      <!-- Upload -->
       <div id="sp-upload" style="display:none;">
-        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-in').click()" ondragover="ev.preventDefault()" ondrop="onDrop(event)">
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-in').click()" ondragover="event.preventDefault()" ondrop="onDrop(event)">
           <div class="drop-icon">📂</div>
           <p class="drop-label">Tap to pick a video</p>
           <p class="drop-sub">MP4, MKV, MOV, AVI</p>
@@ -84,29 +269,25 @@
           <button class="btn-load" onclick="loadFile()">▶ Play</button>
         </div>
       </div>
-      <!-- History -->
       <div id="sp-history" style="display:none;">
         <div class="history-list" id="history-list"></div>
-        <p style="font-size:11px;color:var(--muted);margin-top:8px;">Recently watched videos — tap to reload</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;">Recently watched — tap to reload</p>
       </div>
     </div>
 
-    <!-- Player -->
     <div class="player-wrap" id="player-wrap">
       <div class="ph" id="ph">
         <div class="ph-icon">🎬</div>
         <p>Load a video to watch together 💕</p>
       </div>
-      <video id="main-video" playsinline></video>
-      <!-- Sleep mode overlay -->
+      <video id="main-video" playsinline webkit-playsinline></video>
       <div class="sleep-overlay" id="sleep-overlay">
         <div class="sleep-text">🌙 Sleep Together Mode</div>
-        <div class="sleep-sub">Low light, calm music playing...<br/>Stay close 💕</div>
-        <button onclick="toggleSleep()" style="margin-top:12px;padding:8px 16px;background:var(--rose);border:none;border-radius:20px;color:white;font-size:13px;cursor:pointer;box-shadow:0 0 14px var(--rose-glow);">Wake Up ☀️</button>
+        <div class="sleep-sub">Stay close 💕</div>
+        <button onclick="toggleSleep()" style="margin-top:12px;padding:8px 16px;background:var(--rose);border:none;border-radius:20px;color:white;font-size:13px;cursor:pointer;">Wake Up ☀️</button>
       </div>
     </div>
 
-    <!-- Controls -->
     <div class="ctrl-bar" id="ctrl-bar" style="display:none;">
       <button class="ctrl-btn" id="pp-btn" onclick="togglePlay()">▶</button>
       <button class="ctrl-btn" onclick="skip(-10)">⏪</button>
@@ -116,38 +297,34 @@
       <button class="ctrl-btn" onclick="skip(10)">⏩</button>
       <span class="time-lbl" id="time-lbl">0:00</span>
     </div>
-    <!-- Volume + Whisper -->
     <div class="vol-row" id="vol-row" style="display:none;">
       <span class="vol-icon">🔊</span>
       <input type="range" class="vol-slider" id="vol-slider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)"/>
-      <button class="whisper-btn" id="whisper-btn" onclick="toggleWhisper()">🤫 Whisper Mode</button>
+      <button class="whisper-btn" id="whisper-btn" onclick="toggleWhisper()">🤫 Whisper</button>
     </div>
-
     <div class="sync-row" id="sync-row" style="display:none;">
       <span id="sync-dot" style="color:#4ade80;font-size:10px;">●</span>
       <span class="sync-label" id="sync-label">In sync ✓</span>
     </div>
 
-    <!-- Emoji reactions -->
     <div class="section">
       <label class="sec-label">💫 React Together</label>
-      <div class="emoji-grid" id="emoji-grid">
-        <button class="emoji-btn" data-e="❤️"  onclick="react('❤️',this)">❤️<span class="r-count" id="rc-0"></span></button>
-        <button class="emoji-btn" data-e="😂"  onclick="react('😂',this)">😂<span class="r-count" id="rc-1"></span></button>
-        <button class="emoji-btn" data-e="😱"  onclick="react('😱',this)">😱<span class="r-count" id="rc-2"></span></button>
-        <button class="emoji-btn" data-e="😭"  onclick="react('😭',this)">😭<span class="r-count" id="rc-3"></span></button>
-        <button class="emoji-btn" data-e="🔥"  onclick="react('🔥',this)">🔥<span class="r-count" id="rc-4"></span></button>
-        <button class="emoji-btn" data-e="👏"  onclick="react('👏',this)">👏<span class="r-count" id="rc-5"></span></button>
-        <button class="emoji-btn" data-e="🥰"  onclick="react('🥰',this)">🥰<span class="r-count" id="rc-6"></span></button>
-        <button class="emoji-btn" data-e="💕"  onclick="react('💕',this)">💕<span class="r-count" id="rc-7"></span></button>
-        <button class="emoji-btn" data-e="🤣"  onclick="react('🤣',this)">🤣<span class="r-count" id="rc-8"></span></button>
-        <button class="emoji-btn" data-e="😴"  onclick="react('😴',this)">😴<span class="r-count" id="rc-9"></span></button>
-        <button class="emoji-btn" data-e="🤯"  onclick="react('🤯',this)">🤯<span class="r-count" id="rc-10"></span></button>
-        <button class="emoji-btn" data-e="✨"  onclick="react('✨',this)">✨<span class="r-count" id="rc-11"></span></button>
+      <div class="emoji-grid">
+        <button class="emoji-btn" onclick="react('❤️',this)">❤️<span class="r-count" id="rc-0"></span></button>
+        <button class="emoji-btn" onclick="react('😂',this)">😂<span class="r-count" id="rc-1"></span></button>
+        <button class="emoji-btn" onclick="react('😱',this)">😱<span class="r-count" id="rc-2"></span></button>
+        <button class="emoji-btn" onclick="react('😭',this)">😭<span class="r-count" id="rc-3"></span></button>
+        <button class="emoji-btn" onclick="react('🔥',this)">🔥<span class="r-count" id="rc-4"></span></button>
+        <button class="emoji-btn" onclick="react('👏',this)">👏<span class="r-count" id="rc-5"></span></button>
+        <button class="emoji-btn" onclick="react('🥰',this)">🥰<span class="r-count" id="rc-6"></span></button>
+        <button class="emoji-btn" onclick="react('💕',this)">💕<span class="r-count" id="rc-7"></span></button>
+        <button class="emoji-btn" onclick="react('🤣',this)">🤣<span class="r-count" id="rc-8"></span></button>
+        <button class="emoji-btn" onclick="react('😴',this)">😴<span class="r-count" id="rc-9"></span></button>
+        <button class="emoji-btn" onclick="react('🤯',this)">🤯<span class="r-count" id="rc-10"></span></button>
+        <button class="emoji-btn" onclick="react('✨',this)">✨<span class="r-count" id="rc-11"></span></button>
       </div>
     </div>
 
-    <!-- Mood -->
     <div class="section">
       <label class="sec-label">🎭 Your Mood</label>
       <div class="mood-row">
@@ -161,10 +338,7 @@
       <span id="par-mood-lbl">Partner feels:</span>
       <span class="par-mood-val" id="par-mood-val"></span>
     </div>
-
-    <!-- Sleep Mode -->
     <button class="sleep-btn" id="sleep-btn" onclick="toggleSleep()">🌙 Sleep Together Mode</button>
-
     <div style="height:90px;"></div>
   </div>
 
@@ -204,31 +378,23 @@
       <div class="call-card">
         <div class="call-heart">💕</div>
         <h2 class="call-title">Call Your Partner</h2>
-        <p class="call-sub">Voice & video — iPhone & Android</p>
+        <p class="call-sub">Tap to call — works on iPhone &amp; Android</p>
         <div class="call-btns">
-          <button class="c-btn" id="voice-btn" onclick="toggleVoice()">
+          <button class="c-btn" id="voice-btn" onclick="startVoice()">
             <span class="ci">🎙️</span><span>Voice Call</span>
           </button>
-          <button class="c-btn" id="video-btn" onclick="toggleVideo()">
+          <button class="c-btn" id="video-btn" onclick="startVideo()">
             <span class="ci">📹</span><span>Video Call</span>
           </button>
         </div>
-        <!-- Mute + PTT controls -->
-        <div class="call-controls">
-          <button class="call-ctrl-btn" id="mute-btn" onclick="toggleMute()">🎙️ Mute</button>
-          <button class="call-ctrl-btn" id="ptt-btn"
-            onmousedown="pttStart()" onmouseup="pttEnd()"
-            ontouchstart="pttStart()" ontouchend="pttEnd()">🎤 Hold to Talk</button>
-          <button class="call-ctrl-btn" id="cam-btn" onclick="toggleCam()">📷 Camera</button>
-        </div>
-        <div class="call-status" id="call-status"></div>
+        <div class="call-status" id="call-status-tab"></div>
       </div>
       <div class="how-card">
         <h4>How it works</h4>
         <div class="how-step"><span class="sn">1</span><span>Both join the same room</span></div>
-        <div class="how-step"><span class="sn">2</span><span>Tap Voice or Video — allow mic/camera</span></div>
-        <div class="how-step"><span class="sn">3</span><span>Partner taps same button to connect</span></div>
-        <div class="how-step"><span class="sn">💡</span><span>Push-to-Talk: hold the button to speak, release to stop — no background noise!</span></div>
+        <div class="how-step"><span class="sn">2</span><span>Tap Voice or Video — allow mic/camera when asked</span></div>
+        <div class="how-step"><span class="sn">3</span><span>Partner sees incoming call screen and taps Accept</span></div>
+        <div class="how-step"><span class="sn">💡</span><span>iPhone: use Safari. Android: use Chrome. Both must allow camera & mic.</span></div>
       </div>
     </div>
     <div style="height:80px;"></div>
@@ -256,54 +422,23 @@
           <span class="dist-km" id="prof-km"></span>
           <span>km apart</span>
         </div>
-        <input type="file" id="prof-av-you-file" accept="image/*" style="display:none;" onchange="loadProfileAvatar('you',event)"/>
+        <input type="file" id="prof-av-you-file"     accept="image/*" style="display:none;" onchange="loadProfileAvatar('you',event)"/>
         <input type="file" id="prof-av-partner-file" accept="image/*" style="display:none;" onchange="loadProfileAvatar('partner',event)"/>
       </div>
-
       <div class="profile-edit-card">
         <h4>✏️ Edit Profile</h4>
-        <div class="edit-row">
-          <label>Couple name</label>
-          <input class="field-input" id="edit-couple" placeholder="e.g. VinuBujji ✨" maxlength="30"/>
-        </div>
-        <div class="edit-row">
-          <label>💙 Your name</label>
-          <input class="field-input you-f" id="edit-myname" maxlength="20"/>
-        </div>
-        <div class="edit-row">
-          <label>💛 Partner's name</label>
-          <input class="field-input par-f" id="edit-partner" maxlength="20"/>
-        </div>
-        <div class="edit-row">
-          <label>📍 Distance (km)</label>
-          <input class="field-input" id="edit-dist" type="number" min="0"/>
-        </div>
-        <div class="edit-row">
-          <label>💑 Together since</label>
-          <input class="field-input" id="edit-joined" type="date"/>
-        </div>
+        <div class="edit-row"><label>Couple name</label><input class="field-input" id="edit-couple" maxlength="30"/></div>
+        <div class="edit-row"><label>💙 Your name</label><input class="field-input you-f" id="edit-myname" maxlength="20"/></div>
+        <div class="edit-row"><label>💛 Partner name</label><input class="field-input par-f" id="edit-partner" maxlength="20"/></div>
+        <div class="edit-row"><label>📍 Distance (km)</label><input class="field-input" id="edit-dist" type="number" min="0"/></div>
+        <div class="edit-row"><label>💑 Together since</label><input class="field-input" id="edit-joined" type="date"/></div>
         <button class="save-profile-btn" onclick="saveProfile()">💾 Save Profile</button>
       </div>
     </div>
     <div style="height:80px;"></div>
   </div>
 
-  <!-- Floating video bubbles -->
-  <div class="video-bubble" id="my-bubble">
-    <div class="bubble-inner">
-      <video id="bubble-local" autoplay muted playsinline></video>
-      <button class="bubble-close" onclick="closeBubble()">✕</button>
-      <div class="bubble-label" id="bubble-label-you">You</div>
-    </div>
-  </div>
-  <div class="remote-bubble" id="remote-bubble">
-    <div class="bubble-inner">
-      <video id="bubble-remote" autoplay playsinline></video>
-      <div class="bubble-label" id="bubble-label-partner">Partner</div>
-    </div>
-  </div>
-
-  <div id="float-con" style="position:fixed;inset:0;pointer-events:none;z-index:996;"></div>
+  <div id="float-con" style="position:fixed;inset:0;pointer-events:none;z-index:496;"></div>
   <div class="toast" id="toast"></div>
 
   <script>
@@ -315,20 +450,22 @@
       s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${2+Math.random()*4}s;--delay:${Math.random()*5}s;--op:${0.25+Math.random()*0.65};`;
       sl.appendChild(s);
     }
-    for(let i=0;i<3;i++){
-      const sh=document.createElement('div');sh.className='shoot';
-      sh.style.cssText=`top:${8+Math.random()*30}%;left:${Math.random()*35}%;--sd:${5+Math.random()*5}s;--sdel:${i*2}s;--ang:${28+Math.random()*18}deg;`;
-      sl.appendChild(sh);
-    }
-    // Make bubbles draggable
-    function makeDraggable(el) {
-      let startX,startY,sx,sy;
-      el.addEventListener('mousedown',e=>{startX=e.clientX-el.offsetLeft;startY=e.clientY-el.offsetTop;sx=el.style.right;sy=el.style.bottom;document.onmousemove=ev=>{el.style.left=(ev.clientX-startX)+'px';el.style.top=(ev.clientY-startY)+'px';el.style.right='auto';el.style.bottom='auto';};document.onmouseup=()=>{document.onmousemove=null;};});
-      el.addEventListener('touchstart',e=>{const t=e.touches[0];startX=t.clientX-el.offsetLeft;startY=t.clientY-el.offsetTop;},{passive:true});
-      el.addEventListener('touchmove',e=>{const t=e.touches[0];el.style.left=(t.clientX-startX)+'px';el.style.top=(t.clientY-startY)+'px';el.style.right='auto';el.style.bottom='auto';e.preventDefault();},{passive:false});
-    }
-    makeDraggable(document.getElementById('my-bubble'));
-    makeDraggable(document.getElementById('remote-bubble'));
+    // Make self-preview draggable on mobile & desktop
+    const selfWrap = document.getElementById('call-self-wrap');
+    let dragging=false, ox=0, oy=0;
+    selfWrap.addEventListener('touchstart', e=>{
+      const t=e.touches[0]; ox=t.clientX-selfWrap.offsetLeft; oy=t.clientY-selfWrap.offsetTop;
+      dragging=true;
+    },{passive:true});
+    selfWrap.addEventListener('touchmove', e=>{
+      if(!dragging) return;
+      const t=e.touches[0];
+      selfWrap.style.left=(t.clientX-ox)+'px'; selfWrap.style.top=(t.clientY-oy)+'px';
+      selfWrap.style.right='auto';
+      e.preventDefault();
+    },{passive:false});
+    selfWrap.addEventListener('touchend',()=>dragging=false);
+    selfWrap.addEventListener('mousedown',e=>{ ox=e.clientX-selfWrap.offsetLeft; oy=e.clientY-selfWrap.offsetTop; dragging=true; document.onmousemove=e=>{ selfWrap.style.left=(e.clientX-ox)+'px'; selfWrap.style.top=(e.clientY-oy)+'px'; selfWrap.style.right='auto'; }; document.onmouseup=()=>{ dragging=false; document.onmousemove=null; }; });
   </script>
   <script type="module" src="../js/room.js"></script>
 </body>
