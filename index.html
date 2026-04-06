@@ -1,24 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>TogetherWatch 💕</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,500;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
-  <div class="stars"></div>
+  <div class="stars-layer" id="stars-layer"></div>
+  <div class="glow-blob rose"></div>
+  <div class="glow-blob gold"></div>
+  <div class="glow-blob purple"></div>
 
   <div class="lobby-container">
     <div class="lobby-card">
       <div class="logo-big">Together<span>♥</span>Watch</div>
       <p class="tagline">Watch movies together — no matter the distance 🌙</p>
 
-      <div class="name-section">
-        <label class="field-label">Your name</label>
-        <input type="text" id="my-name" class="field-input" placeholder="e.g. Priya or Alex" maxlength="20" />
+      <!-- Couple identity -->
+      <div class="couple-row">
+        <div class="couple-field">
+          <label class="couple-label label-you">💙 Your name</label>
+          <input type="text" id="my-name" class="field-input you-input" placeholder="e.g. Vinu" maxlength="20"/>
+        </div>
+        <div class="couple-field">
+          <label class="couple-label label-partner">💛 Partner's name</label>
+          <input type="text" id="partner-name-input" class="field-input partner-input" placeholder="e.g. Bujji" maxlength="20"/>
+        </div>
       </div>
 
       <div class="divider-text">— Choose an option —</div>
@@ -28,27 +36,42 @@
       </button>
 
       <div class="join-section">
-        <input
-          type="text"
-          id="join-code"
-          class="field-input"
-          placeholder="Enter Room Code (e.g. AB12CD)"
-          maxlength="6"
+        <input type="text" id="join-code" class="field-input"
+          placeholder="Enter Room Code (e.g. AB12CD)" maxlength="6"
           style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:18px;"
-          onkeydown="if(event.key==='Enter') joinRoom()"
-        />
-        <button class="btn-secondary" id="join-btn" onclick="joinRoom()">
-          🔗 Join Room
-        </button>
+          onkeydown="if(event.key==='Enter') joinRoom()"/>
+        <button class="btn-secondary" id="join-btn" onclick="joinRoom()">🔗 Join Room</button>
       </div>
 
-      <div id="lobby-status" style="text-align:center;margin-top:14px;font-size:13px;color:rgba(255,255,255,0.5);min-height:20px;"></div>
-
-      <p class="hint">Share your room code with your partner. Works on iPhone & Android! 📱</p>
+      <div id="lobby-status"></div>
+      <p class="hint">Share your room code with your partner. Works on iPhone &amp; Android! 📱</p>
     </div>
   </div>
 
-  <!-- ONE module entry point only — lobby.js imports firebase itself -->
   <script type="module" src="js/lobby.js"></script>
+  <script>
+    // Generate animated stars
+    const layer = document.getElementById('stars-layer');
+    for (let i = 0; i < 60; i++) {
+      const s = document.createElement('div');
+      s.className = 'star';
+      const size = Math.random() * 2.5 + 0.5;
+      s.style.cssText = `
+        width:${size}px;height:${size}px;
+        top:${Math.random()*100}%;left:${Math.random()*100}%;
+        --dur:${2+Math.random()*4}s;
+        --delay:${Math.random()*5}s;
+        --max-op:${0.3+Math.random()*0.7};
+      `;
+      layer.appendChild(s);
+    }
+    // Shooting stars
+    for (let i = 0; i < 3; i++) {
+      const sh = document.createElement('div');
+      sh.className = 'shooting';
+      sh.style.cssText = `top:${10+Math.random()*30}%;left:${Math.random()*50}%;animation-delay:${i*2.5}s;`;
+      layer.appendChild(sh);
+    }
+  </script>
 </body>
 </html>
