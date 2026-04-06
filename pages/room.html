@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TogetherWatch — Room 💕</title>
-  <link rel="stylesheet" href="../css/style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,500;1,400&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>TogetherWatch 💕</title>
+  <link rel="stylesheet" href="../css/style.css"/>
 </head>
 <body>
-  <div class="stars"></div>
+  <div class="stars-layer" id="stars-layer"></div>
+  <div class="glow-blob rose"></div>
+  <div class="glow-blob gold"></div>
+  <div class="glow-blob purple"></div>
 
   <header class="app-header">
     <a href="../index.html" class="logo-small">Together<span>♥</span>Watch</a>
@@ -19,36 +20,42 @@
         <span class="room-badge-code" id="header-room-code">------</span>
         <button class="copy-btn" onclick="copyRoomCode()">📋</button>
       </div>
-      <div class="partner-status">
-        <div class="status-dot offline" id="partner-dot"></div>
-        <span id="partner-name-display">Waiting...</span>
+      <!-- Couple identity bar -->
+      <div class="identity-bar">
+        <div class="id-chip">
+          <div class="id-dot online"></div>
+          <span class="id-name you" id="my-chip-name">You</span>
+          <span class="id-emoji">💙</span>
+        </div>
+        <div class="id-chip">
+          <div class="id-dot offline" id="partner-dot"></div>
+          <span class="id-name partner" id="partner-chip-name">Partner</span>
+          <span class="id-emoji">💛</span>
+        </div>
       </div>
     </div>
   </header>
 
   <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="switchTab('watch', this)"><span>🎬</span><span>Watch</span></button>
-    <button class="nav-btn" onclick="switchTab('chat', this)">
+    <button class="nav-btn active" onclick="switchTab('watch',this)"><span>🎬</span><span>Watch</span></button>
+    <button class="nav-btn" onclick="switchTab('chat',this)">
       <span>💬</span><span>Chat</span>
       <span class="chat-badge" id="chat-badge" style="display:none;">●</span>
     </button>
-    <button class="nav-btn" onclick="switchTab('call', this)"><span>📞</span><span>Call</span></button>
+    <button class="nav-btn" onclick="switchTab('call',this)"><span>📞</span><span>Call</span></button>
   </nav>
 
   <!-- ===== WATCH TAB ===== -->
   <div id="tab-watch" class="tab active">
-
     <div class="section">
       <label class="section-label">🎬 Load a Video</label>
       <div class="source-tabs">
         <button class="source-tab active" id="src-tab-url"    onclick="switchSourceTab('url')">🔗 Paste URL</button>
         <button class="source-tab"        id="src-tab-upload" onclick="switchSourceTab('upload')">📁 Upload File</button>
       </div>
-
-      <!-- URL panel -->
       <div id="src-panel-url" class="src-panel">
         <div class="url-row">
-          <input type="url" id="video-url-input" class="field-input" placeholder="Google Drive, Dropbox, or direct .mp4 URL..." />
+          <input type="url" id="video-url-input" class="field-input" placeholder="Google Drive, Dropbox, or .mp4 URL..."/>
           <button class="btn-load" onclick="loadVideoFromUrl()">Load</button>
         </div>
         <div class="source-guide">
@@ -58,44 +65,36 @@
           <span class="guide-pill direct">✅ Direct .mp4</span>
           <span class="guide-pill yt">❌ YouTube</span>
         </div>
-        <p class="hint" style="margin-top:6px;">Google Drive: share link → "Anyone with the link" → paste here</p>
       </div>
-
-      <!-- Upload panel -->
       <div id="src-panel-upload" class="src-panel" style="display:none;">
         <div class="upload-drop-zone" id="upload-zone"
              onclick="document.getElementById('file-input').click()"
              ondragover="onDragOver(event)" ondrop="onFileDrop(event)">
           <div class="upload-icon">📂</div>
           <p class="upload-label">Tap to pick a video file</p>
-          <p class="upload-sub">MP4, MKV, MOV, AVI — plays instantly</p>
-          <input type="file" id="file-input" accept="video/*" style="display:none;" onchange="onFileSelected(event)" />
+          <p class="upload-sub">MP4, MKV, MOV, AVI</p>
+          <input type="file" id="file-input" accept="video/*" style="display:none;" onchange="onFileSelected(event)"/>
         </div>
         <div id="upload-info" style="display:none;" class="upload-info-bar">
           <span id="upload-filename" class="upload-filename"></span>
           <button class="btn-load" onclick="loadVideoFromFile()">▶ Play</button>
         </div>
-        <p class="hint" style="margin-top:8px;">Both partners pick the same movie file on their own device</p>
       </div>
     </div>
 
-    <!-- Video player — ONE video element, full sync always -->
     <div class="player-wrap" id="player-wrap">
       <div class="player-placeholder" id="player-placeholder">
         <div class="placeholder-icon">🎬</div>
-        <p>Load a video above to watch together 💕</p>
+        <p>Load a video to watch together 💕</p>
       </div>
       <video id="main-video" playsinline></video>
     </div>
 
-    <!-- Playback controls -->
     <div class="controls-bar" id="controls-bar" style="display:none;">
       <button class="ctrl-btn" id="play-pause-btn" onclick="togglePlay()">▶</button>
       <button class="ctrl-btn" onclick="skip(-10)">⏪</button>
       <div class="progress-container" onclick="seekTo(event)">
-        <div class="progress-track">
-          <div class="progress-fill" id="progress-fill"></div>
-        </div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       </div>
       <button class="ctrl-btn" onclick="skip(10)">⏩</button>
       <span class="time-label" id="time-label">0:00</span>
@@ -106,26 +105,25 @@
       <span class="sync-label" id="sync-label">In sync with partner ✓</span>
     </div>
 
-    <!-- Emoji reactions -->
+    <!-- Upgraded emoji reactions with counters -->
     <div class="section">
       <label class="section-label">💫 React Together</label>
       <div class="emoji-grid">
-        <button class="emoji-btn" onclick="sendReaction('❤️')">❤️</button>
-        <button class="emoji-btn" onclick="sendReaction('😂')">😂</button>
-        <button class="emoji-btn" onclick="sendReaction('😱')">😱</button>
-        <button class="emoji-btn" onclick="sendReaction('😭')">😭</button>
-        <button class="emoji-btn" onclick="sendReaction('🔥')">🔥</button>
-        <button class="emoji-btn" onclick="sendReaction('👏')">👏</button>
-        <button class="emoji-btn" onclick="sendReaction('🥰')">🥰</button>
-        <button class="emoji-btn" onclick="sendReaction('💕')">💕</button>
-        <button class="emoji-btn" onclick="sendReaction('🤣')">🤣</button>
-        <button class="emoji-btn" onclick="sendReaction('😴')">😴</button>
-        <button class="emoji-btn" onclick="sendReaction('🤯')">🤯</button>
-        <button class="emoji-btn" onclick="sendReaction('✨')">✨</button>
+        <button class="emoji-btn" data-emoji="❤️"  onclick="sendReaction('❤️',this)">❤️<span class="react-count" id="cnt-heart"></span></button>
+        <button class="emoji-btn" data-emoji="😂"  onclick="sendReaction('😂',this)">😂<span class="react-count" id="cnt-laugh"></span></button>
+        <button class="emoji-btn" data-emoji="😱"  onclick="sendReaction('😱',this)">😱<span class="react-count" id="cnt-shock"></span></button>
+        <button class="emoji-btn" data-emoji="😭"  onclick="sendReaction('😭',this)">😭<span class="react-count" id="cnt-cry"></span></button>
+        <button class="emoji-btn" data-emoji="🔥"  onclick="sendReaction('🔥',this)">🔥<span class="react-count" id="cnt-fire"></span></button>
+        <button class="emoji-btn" data-emoji="👏"  onclick="sendReaction('👏',this)">👏<span class="react-count" id="cnt-clap"></span></button>
+        <button class="emoji-btn" data-emoji="🥰"  onclick="sendReaction('🥰',this)">🥰<span class="react-count" id="cnt-love"></span></button>
+        <button class="emoji-btn" data-emoji="💕"  onclick="sendReaction('💕',this)">💕<span class="react-count" id="cnt-hearts"></span></button>
+        <button class="emoji-btn" data-emoji="🤣"  onclick="sendReaction('🤣',this)">🤣<span class="react-count" id="cnt-rofl"></span></button>
+        <button class="emoji-btn" data-emoji="😴"  onclick="sendReaction('😴',this)">😴<span class="react-count" id="cnt-sleep"></span></button>
+        <button class="emoji-btn" data-emoji="🤯"  onclick="sendReaction('🤯',this)">🤯<span class="react-count" id="cnt-mind"></span></button>
+        <button class="emoji-btn" data-emoji="✨"  onclick="sendReaction('✨',this)">✨<span class="react-count" id="cnt-spark"></span></button>
       </div>
     </div>
 
-    <!-- Mood -->
     <div class="section">
       <label class="section-label">🎭 Your Mood</label>
       <div class="mood-row">
@@ -135,12 +133,10 @@
         <button class="mood-btn" onclick="setMood(this,'😴 Sleepy')"><span>😴</span>Sleepy</button>
       </div>
     </div>
-
     <div class="partner-mood-row" id="partner-mood-row" style="display:none;">
-      <span class="partner-mood-label">Partner feels:</span>
+      <span class="partner-mood-label" id="partner-mood-label">Partner feels:</span>
       <span class="partner-mood-value" id="partner-mood-value"></span>
     </div>
-
     <div style="height:90px;"></div>
   </div>
 
@@ -148,6 +144,14 @@
   <div id="tab-chat" class="tab">
     <div class="chat-wrapper">
       <div class="messages-list" id="messages-list"></div>
+    </div>
+    <!-- Typing indicator -->
+    <div class="typing-wrap">
+      <div class="typing-indicator" id="typing-indicator">
+        <span class="typing-name" id="typing-name">Partner</span>
+        <span>is typing</span>
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
     </div>
     <div class="quick-emoji-bar">
       <button onclick="sendChatEmoji('❤️')">❤️</button>
@@ -162,7 +166,7 @@
     <div class="chat-input-bar">
       <input type="text" id="chat-input" class="chat-text-input"
         placeholder="Say something sweet..." maxlength="300"
-        onkeydown="if(event.key==='Enter') sendChatMessage()" />
+        onkeydown="onChatKeydown(event)" oninput="onTyping()"/>
       <button class="send-btn" onclick="sendChatMessage()">➤</button>
     </div>
     <div style="height:70px;"></div>
@@ -174,20 +178,20 @@
       <div class="call-card">
         <div class="call-heart">💕</div>
         <h2 class="call-title">Call Your Partner</h2>
-        <p class="call-subtitle">Voice & video call — works on iPhone and Android</p>
+        <p class="call-subtitle">Voice & video call — iPhone & Android</p>
         <div id="local-video-wrap" style="display:none;">
           <video id="local-video" autoplay muted playsinline class="local-video-preview"></video>
           <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;">You</p>
         </div>
         <div id="remote-video-wrap" style="display:none;">
           <video id="remote-video" autoplay playsinline class="remote-video-preview"></video>
-          <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;">Partner</p>
+          <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px;" id="partner-video-label">Partner</p>
         </div>
         <div class="call-buttons">
-          <button class="call-btn voice" id="voice-btn" onclick="toggleVoiceCall()">
+          <button class="call-btn" id="voice-btn" onclick="toggleVoiceCall()">
             <span class="call-icon">🎙️</span><span>Voice Call</span>
           </button>
-          <button class="call-btn video" id="video-btn" onclick="toggleVideoCall()">
+          <button class="call-btn" id="video-btn" onclick="toggleVideoCall()">
             <span class="call-icon">📹</span><span>Video Call</span>
           </button>
         </div>
@@ -196,7 +200,7 @@
       <div class="how-to-card">
         <h4>How calls work</h4>
         <div class="how-step"><span class="step-n">1</span><span>Both join the same room</span></div>
-        <div class="how-step"><span class="step-n">2</span><span>Click Voice or Video — allow mic/camera</span></div>
+        <div class="how-step"><span class="step-n">2</span><span>Tap Voice or Video — allow mic/camera</span></div>
         <div class="how-step"><span class="step-n">3</span><span>Partner taps same button to connect</span></div>
       </div>
     </div>
@@ -206,6 +210,23 @@
   <div id="float-container" style="position:fixed;inset:0;pointer-events:none;z-index:999;"></div>
   <div class="toast" id="toast"></div>
 
+  <script>
+    // Animated stars
+    const layer = document.getElementById('stars-layer');
+    for (let i = 0; i < 55; i++) {
+      const s = document.createElement('div');
+      s.className = 'star';
+      const size = Math.random() * 2.5 + 0.5;
+      s.style.cssText = `width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${2+Math.random()*4}s;--delay:${Math.random()*5}s;--max-op:${0.3+Math.random()*0.7};`;
+      layer.appendChild(s);
+    }
+    for (let i = 0; i < 2; i++) {
+      const sh = document.createElement('div');
+      sh.className = 'shooting';
+      sh.style.cssText = `top:${10+Math.random()*30}%;left:${Math.random()*40}%;animation-delay:${i*3.5}s;`;
+      layer.appendChild(sh);
+    }
+  </script>
   <script type="module" src="../js/room.js"></script>
 </body>
 </html>
