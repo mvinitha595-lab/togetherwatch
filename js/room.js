@@ -83,16 +83,15 @@ document.addEventListener("DOMContentLoaded", () => {
   onDisconnect(presRef).remove();
   onDisconnect(typingRef).remove();
 
-  // All listeners
+  // Core listeners
   listenPresence();
   listenPlayState();
   listenVideoUrl();
-  listenMessages();
-  listenReactions();
   listenMoods();
-  listenSignals();
   listenTyping();
   listenSeen();
+  // Enhanced listeners with notifications (defined at end of file)
+  setTimeout(()=>{ if(window.__startNotifListeners) window.__startNotifListeners(); }, 150);
 
   // Video events → sync
   video.addEventListener("play",       pushPlay);
@@ -611,3 +610,264 @@ function errToast(m){
   t.textContent="❌ "+m;t.classList.add("show");clearTimeout(t._t);
   t._t=setTimeout(()=>{t.classList.remove("show");t.style.background="";t.style.borderColor="";},8000);
 }
+
+// =============================================
+//  NOTIFICATIONS v7
+//  ✅ Message sound  ✅ Call ringtone + vibration
+//  ✅ Browser notifications  ✅ Both-end call end
+// =============================================
+
+// ── Audio engine (Web Audio API — no files needed) ─────────
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+
+function playBeep(freq=440, dur=0.12, vol=0.3, type="sine") {
+  try {
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.frequency.value=freq; o.type=type;
+    g.gain.setValueAtTime(0,AC.currentTime);
+    g.gain.linearRampToValueAtTime(vol, AC.currentTime+0.01);
+    g.gain.linearRampToValueAtTime(0,  AC.currentTime+dur);
+    o.start(AC.currentTime); o.stop(AC.currentTime+dur+0.01);
+  } catch(e){}
+}
+
+// Message received sound — soft double ping
+function playMsgSound() {
+  playBeep(880, 0.08, 0.2, "sine");
+  setTimeout(()=>playBeep(1100, 0.08, 0.15, "sine"), 100);
+}
+
+// Reaction sound — warm pop
+function playReactSound() {
+  playBeep(660, 0.07, 0.18, "sine");
+}
+
+// Call ringtone — repeating pattern
+let ringTimer = null;
+function startRingtone() {
+  stopRingtone();
+  function ring() {
+    playBeep(830, 0.15, 0.35, "sine");
+    setTimeout(()=>playBeep(830, 0.15, 0.35, "sine"), 250);
+    setTimeout(()=>playBeep(1050, 0.2, 0.35, "sine"), 500);
+  }
+  ring();
+  ringTimer = setInterval(ring, 1200);
+  // Vibrate on mobile
+  if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]);
+}
+function stopRingtone() {
+  if (ringTimer) { clearInterval(ringTimer); ringTimer = null; }
+  if (navigator.vibrate) navigator.vibrate(0);
+}
+
+// Call connected sound — two ascending tones
+function playCallConnected() {
+  stopRingtone();
+  playBeep(660, 0.12, 0.3);
+  setTimeout(()=>playBeep(880, 0.18, 0.3), 150);
+}
+
+// Call ended sound — descending
+function playCallEnded() {
+  playBeep(600, 0.12, 0.25);
+  setTimeout(()=>playBeep(450, 0.18, 0.2), 140);
+}
+
+// ── BROWSER NOTIFICATIONS ───────────────────────────────────
+async function askNotifPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    await Notification.requestPermission();
+  }
+}
+
+function showNotif(title, body, icon="💕") {
+  if (Notification.permission !== "granted") return;
+  if (document.hasFocus()) return; // only show when app is in background
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>" + icon + "</text></svg>",
+      badge:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💕</text></svg>",
+      tag: "tw-notif",
+      renotify: true,
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+    setTimeout(()=>n.close(), 5000);
+  } catch(e){}
+}
+
+// ── CALL SIGNALING — with both-end end ─────────────────────
+// We add a "callEnd" signal so when one hangs up the other also ends
+const callCtrlRef = ref(db, `rooms/${ROOM}/callControl`);
+
+function listenCallControl() {
+  onValue(callCtrlRef, snap => {
+    const data = snap.val();
+    if (!data) return;
+    if (data.action === "end" && data.by !== MY_ID && callActive) {
+      // Partner hung up — end on our side too
+      endCall();
+      toast(PARTNER_NAME + " ended the call 💔");
+      playCallEnded();
+    }
+    if (data.action === "ringing" && data.to === MY_ID && !callActive) {
+      // Incoming call notification
+      startRingtone();
+      showNotif(
+        "📞 Incoming " + (data.callType==="video"?"Video":"Voice") + " Call",
+        PARTNER_NAME + " is calling you! Open the app to answer 💕",
+        data.callType==="video"?"📹":"🎙️"
+      );
+      toast("📞 " + PARTNER_NAME + " is calling! Go to Call tab");
+      // Vibrate in a ring pattern
+      if (navigator.vibrate) navigator.vibrate([500,200,500,200,500,200,500]);
+    }
+  });
+}
+
+// ── OVERRIDE signal functions to add notifications ──────────
+
+// Override listenSignals to add ring + sound
+function listenSignalsWithNotif() {
+  onValue(sigRef, async snap => {
+    const data = snap.val() || {};
+    for (const [id, sig] of Object.entries(data)) {
+      if (sig.to !== MY_ID) continue;
+
+      if (sig.type === "offer" && !pc) {
+        // Incoming call!
+        startRingtone();
+        showNotif(
+          "📞 Incoming " + (sig.callType==="video"?"Video":"Voice") + " Call! 💕",
+          PARTNER_NAME + " is calling you!",
+          sig.callType==="video" ? "📹" : "🎙️"
+        );
+        toast("📞 " + PARTNER_NAME + " is calling! Answer below ↓");
+        if (navigator.vibrate) navigator.vibrate([400,150,400,150,400,150,400]);
+        await handleOfferWithSound(sig);
+      } else if (sig.type === "answer" && pc) {
+        stopRingtone();
+        playCallConnected();
+        await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp)).catch(console.error);
+      } else if (sig.type === "ice-candidate" && pc) {
+        await pc.addIceCandidate(new RTCIceCandidate(sig.candidate)).catch(()=>{});
+      }
+      remove(ref(db, `rooms/${ROOM}/signals/${id}`));
+    }
+  });
+}
+
+async function handleOfferWithSound(sig) {
+  const c = sig.callType==="video" ? {audio:true,video:true} : {audio:true};
+  try { localStream = await navigator.mediaDevices.getUserMedia(c); }
+  catch { stopRingtone(); toast("Cannot access mic/camera."); return; }
+  stopRingtone();
+  playCallConnected();
+  showBubble(sig.callType==="video");
+  await buildPC(localStream);
+  await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp));
+  const ans = await pc.createAnswer();
+  await pc.setLocalDescription(ans);
+  push(sigRef, {type:"answer", sdp:pc.localDescription.toJSON(), from:MY_ID, to:sig.from});
+  callActive=true; callType=sig.callType; updateCallUI();
+  toast("✓ Call connected with " + PARTNER_NAME + " 💕");
+  showNotif("✓ Connected!", "You are now on a call with " + PARTNER_NAME + " 💕", "💕");
+}
+
+// ── OVERRIDE startCall to notify partner ────────────────────
+window.toggleVoice = async()=>{ callActive ? hangUp() : await startCallWithNotif("voice"); };
+window.toggleVideo = async()=>{ callActive ? hangUp() : await startCallWithNotif("video"); };
+
+async function startCallWithNotif(type) {
+  const pid = await getPid();
+  if (!pid) { toast(PARTNER_NAME+" is not in the room yet!"); return; }
+  const c = type==="video" ? {audio:true,video:true} : {audio:true};
+  try { localStream = await navigator.mediaDevices.getUserMedia(c); }
+  catch { toast("Cannot access mic/camera."); return; }
+  showBubble(type==="video");
+  await buildPC(localStream);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  push(sigRef, {type:"offer", sdp:pc.localDescription.toJSON(), callType:type, from:MY_ID, to:pid});
+  // Notify partner
+  set(callCtrlRef, {action:"ringing", by:MY_ID, to:pid, callType:type, at:Date.now()});
+  callActive=true; callType=type; updateCallUI();
+  document.getElementById("call-status").textContent = "Calling " + PARTNER_NAME + "... 📞";
+  toast("Calling " + PARTNER_NAME + "... 📞");
+  // Ring for caller too (softer)
+  playBeep(550, 0.1, 0.15);
+}
+
+// Hang up and tell partner
+function hangUp() {
+  // Signal partner to end their call too
+  set(callCtrlRef, {action:"end", by:MY_ID, at:Date.now()});
+  stopRingtone();
+  playCallEnded();
+  endCall();
+  // Clear the signal after 2s
+  setTimeout(()=>set(callCtrlRef,null), 2000);
+}
+
+// ── OVERRIDE listenMessages to add sound + notif ────────────
+const msgJoinTime = Date.now();
+
+function listenMessagesWithSound() {
+  onValue(chatRef, snap => {
+    const msgs = Object.values(snap.val()||{});
+    // Check for new messages from partner
+    msgs.forEach(msg => {
+      if (msg.localAt && msg.localAt > msgJoinTime && msg.name !== MY_NAME) {
+        // New message from partner!
+        playMsgSound();
+        showNotif(
+          "💬 " + PARTNER_NAME + " sent a message",
+          msg.eo ? "Sent a reaction " + msg.text : msg.text,
+          "💬"
+        );
+        // Vibrate once briefly
+        if (navigator.vibrate) navigator.vibrate(100);
+      }
+    });
+    cachedMsgs = msgs;
+    renderMsgs();
+    if (!document.getElementById("tab-chat").classList.contains("active"))
+      document.getElementById("chat-badge").style.display = "inline";
+  });
+}
+
+// ── OVERRIDE listenReactions to add sound ──────────────────
+function listenReactionsWithSound() {
+  onValue(reactRef, snap => {
+    const data = snap.val() || {};
+    Object.values(data).forEach(item => {
+      if (item.at > jtReact && item.by !== MY_NAME) {
+        doReact(item.emoji);
+        playReactSound();
+        if (navigator.vibrate) navigator.vibrate(60);
+      }
+    });
+  });
+}
+
+// ── BOOT PATCH — replace listeners with enhanced versions ───
+// This runs after DOMContentLoaded already fired, so we patch immediately
+(function patchListeners() {
+  // Ask for notification permission on first interaction
+  document.addEventListener("click", function askOnce() {
+    askNotifPermission();
+    AC.resume().catch(()=>{});
+    document.removeEventListener("click", askOnce);
+  }, {once:true});
+})();
+
+// Export patched functions so boot can call them
+window.__startNotifListeners = function() {
+  listenSignalsWithNotif();
+  listenCallControl();
+  listenMessagesWithSound();
+  listenReactionsWithSound();
+};
