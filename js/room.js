@@ -93,6 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
   listenPlayState();
   listenVideoUrl();
   listenMoods();
+  listenVideoHint();
   listenTyping();
   listenSeen();
 
@@ -137,23 +138,28 @@ function setAvatarEl(id, src) {
 // ── iOS / Android background fix ───────────────────────────
 function handleVisibilityChange() {
   if (document.hidden) {
-    // App went to background — keep stream alive on iOS
+    // App going to background
     if (localStream) {
-      localStream.getTracks().forEach(t => {
-        // Don't stop tracks, just note they may need restart
-        t._wasEnabled = t.enabled;
-      });
+      localStream.getTracks().forEach(t => { t._wasEnabled = t.enabled; });
     }
   } else {
-    // App came back to foreground — check if tracks are still live
+    // ── App came back to foreground ──
+
+    // FIX: iOS Safari throttles Firebase websocket in background.
+    // Force re-render of chat when app becomes visible again.
+    renderMsgs();
+    markSeen();
+
+    // Re-announce presence (iOS may have dropped the connection)
+    set(presRef, { name: MY_NAME, joinedAt: Date.now() });
+
+    // Check camera tracks
     if (localStream && callActive) {
       localStream.getTracks().forEach(async t => {
         if (t.readyState === "ended") {
-          // Track died while in background — restart stream
           toast("Reconnecting camera... 🔄");
           await restartMediaStream();
         } else {
-          // Restore enabled state
           if (t._wasEnabled !== undefined) t.enabled = t._wasEnabled;
         }
       });
@@ -232,21 +238,47 @@ window.loadUrl = function() {
   if (raw.includes("netflix.com") || raw.includes("primevideo.com") || raw.includes("hotstar.com")) { errToast("Streaming services block external players."); return; }
   const url = toStream(raw);
   if (url !== raw) { document.getElementById("video-url").value = url; toast("Link converted ✓"); }
-  update(roomRef, { videoUrl:url, videoLoadedBy:MY_NAME, videoTitle:extractTitle(url) });
-  applyVideo(url, extractTitle(url));
+  // Write to /video node atomically — partner gets url+title+by in one update
+  const title = extractTitle(url);
+  set(ref(db, `rooms/${ROOM}/video`), { url, title, by: MY_ID, at: Date.now() });
+  applyVideo(url, title);
 };
 
 function listenVideoUrl() {
-  onValue(ref(db,`rooms/${ROOM}/videoUrl`), snap => {
-    const url = snap.val(); if (!url) return;
+  // Listen to the full video node so we get url + title atomically
+  onValue(ref(db, `rooms/${ROOM}/video`), snap => {
+    const data = snap.val();
+    if (!data || !data.url) return;
+    const url = data.url;
+    // Skip if we already have this exact URL loaded
     if (video.getAttribute("data-src") === url) return;
-    get(ref(db,`rooms/${ROOM}/videoLoadedBy`)).then(s => {
-      if (s.val() === MY_NAME) return;
-      get(ref(db,`rooms/${ROOM}/videoTitle`)).then(t => {
-        applyVideo(url, t.val()||"Video");
-        toast(PARTNER_NAME + " loaded a video 🎬");
-      });
-    });
+    // Skip blob:// URLs — they are local only, cannot be shared
+    if (url.startsWith("blob:")) return;
+    // Apply for everyone — both the loader and partner
+    applyVideo(url, data.title || extractTitle(url));
+    // Only show "partner loaded" toast if it wasn't us
+    if (data.by !== MY_ID) {
+      toast(PARTNER_NAME + " loaded a video 🎬");
+    }
+  });
+}
+
+
+// Listen for local file hint — tells partner which file to upload
+function listenVideoHint() {
+  onValue(ref(db, `rooms/${ROOM}/video`), snap => {
+    const data = snap.val();
+    if (!data || !data.isLocal || data.by === MY_ID) return;
+    // Partner uploaded a local file — prompt us to upload the same
+    toast("📁 " + PARTNER_NAME + " uploaded: " + data.hint.replace(/.* uploaded: /, "") + " — please upload the same file!");
+    // Shake the upload tab button
+    const uploadBtn = document.getElementById("st-upload");
+    if (uploadBtn) {
+      uploadBtn.style.animation = "none";
+      uploadBtn.style.borderColor = "var(--rose)";
+      uploadBtn.style.boxShadow = "0 0 14px var(--rose-glow)";
+      setTimeout(() => { uploadBtn.style.borderColor=""; uploadBtn.style.boxShadow=""; }, 4000);
+    }
   });
 }
 
@@ -279,7 +311,14 @@ function renderHistory() {
   h.forEach((item, i) => {
     const div = document.createElement("div"); div.className = "history-item";
     div.innerHTML = `<span class="history-icon">🎬</span><span class="history-name">${esc(item.title)}</span><button class="history-del" onclick="event.stopPropagation();delHistory(${i})">✕</button>`;
-    div.addEventListener("click", () => { applyVideo(item.url, item.title); update(roomRef, {videoUrl:item.url, videoLoadedBy:MY_NAME, videoTitle:item.title}); });
+    div.addEventListener("click", () => {
+      if (!item.url || item.url.startsWith("blob:") || item.url === "") {
+        toast("Local files cannot be reloaded from history. Please re-upload the file.");
+        return;
+      }
+      applyVideo(item.url, item.title);
+      set(ref(db, `rooms/${ROOM}/video`), { url:item.url, title:item.title, by:MY_ID, at:Date.now() });
+    });
     list.appendChild(div);
   });
 }
@@ -302,10 +341,24 @@ window.onDrop = function(e) {
 window.loadFile = function() {
   if (!selectedFile) { toast("Pick a video file first!"); return; }
   const url = URL.createObjectURL(selectedFile);
-  applyVideo(url, selectedFile.name);
-  video.setAttribute("data-src","local:"+selectedFile.name);
-  update(roomRef, {videoUrl:"",videoLoadedBy:MY_NAME,videoHint:MY_NAME+" loaded: "+selectedFile.name});
-  toast("Loaded! Partner must load the same file 🎬");
+  const fname = selectedFile.name;
+  applyVideo(url, fname);
+  // Mark as local — don't write blob URL to Firebase (it won't work cross-device)
+  video.setAttribute("data-src", "local:" + fname);
+  // Tell partner which file to load (name only — they must pick the same file)
+  set(ref(db, `rooms/${ROOM}/video`), {
+    url: "",           // empty — blob URLs can't be shared
+    title: fname,
+    by: MY_ID,
+    isLocal: true,     // flag so partner knows to upload same file
+    hint: MY_NAME + " uploaded: " + fname,
+    at: Date.now()
+  });
+  toast("Your video is playing! ▶");
+  // Show partner a clear instruction
+  setTimeout(() => {
+    toast("📁 Tell " + PARTNER_NAME + " to upload the same file: " + fname);
+  }, 2500);
 };
 
 // ── PLAYBACK SYNC ──────────────────────────────────────────
@@ -438,19 +491,40 @@ function markSeen() { set(seenRef, {name:MY_NAME,at:Date.now()}); }
 
 function listenMessagesWithSound() {
   const joinT = Date.now();
+  const seenKeys = new Set(); // track already-notified messages
   onValue(chatRef, snap => {
-    const msgs = Object.values(snap.val()||{});
-    msgs.forEach(msg => {
-      if (msg.localAt && msg.localAt > joinT && msg.name !== MY_NAME) {
+    const raw = snap.val() || {};
+    const msgs = Object.entries(raw);
+    let hasNew = false;
+    msgs.forEach(([key, msg]) => {
+      // New message = after we joined + from partner + not seen yet
+      if (
+        msg.localAt &&
+        msg.localAt > joinT &&
+        msg.name !== MY_NAME &&
+        !seenKeys.has(key)
+      ) {
+        seenKeys.add(key);
+        hasNew = true;
         playMsgSound();
-        showNotif("💬 "+PARTNER_NAME, msg.eo ? msg.text : msg.text, "💬");
+        showNotif("💬 " + PARTNER_NAME, msg.eo ? msg.text : msg.text, "💬");
         if (navigator.vibrate) navigator.vibrate(80);
       }
     });
-    cachedMsgs = msgs;
+    cachedMsgs = Object.values(raw);
     renderMsgs();
-    if (!document.getElementById("tab-chat").classList.contains("active"))
+    // Auto-scroll to bottom
+    setTimeout(() => {
+      const w = document.querySelector(".chat-wrap");
+      if (w) w.scrollTop = w.scrollHeight;
+    }, 50);
+    if (hasNew && !document.getElementById("tab-chat").classList.contains("active")) {
       document.getElementById("chat-badge").style.display = "inline";
+    }
+    // Auto mark seen if chat tab is open
+    if (document.getElementById("tab-chat").classList.contains("active")) {
+      markSeen();
+    }
   });
 }
 
